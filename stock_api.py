@@ -25,48 +25,24 @@ def get_stock_news(ticker):
     return news_data
 
 # Function to fetch stock price and price target
-import requests
-import yfinance as yf
-
-def get_stock_data(ticker):
-    session = requests.Session()
-    session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})  # Spoof browser
-    import requests
-import yfinance as yf
-
 def get_stock_data(ticker):
     try:
-        session = requests.Session()
-        session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})  # Spoof browser
-        stock = yf.Ticker(ticker)  # Do NOT pass session here, yfinance does not accept it
+        stock = yf.Ticker(ticker)  # Fetch stock data
+        stock_info = stock.history(period="5d")  # Get last 5 days of stock history
+
+        if stock_info.empty:
+            return {"error": "Invalid stock ticker or no data available"}
 
         return {
             "stock_name": stock.info.get('shortName', 'N/A'),
             "current_price": stock.info.get('regularMarketPrice', 'N/A'),
             "previous_close": stock.info.get('previousClose', 'N/A'),
-            "market_cap": stock.info.get('marketCap', 'N/A')
+            "market_cap": stock.info.get('marketCap', 'N/A'),
+            "news": get_stock_news(ticker),
+            "price_trend": stock_info['Close'].tolist() if not stock_info.empty else "N/A"
         }
     except Exception as e:
         return {"error": f"Failed to fetch stock data: {str(e)}"}
-
-
-    try:
-        return {
-            "stock_name": stock.info.get('shortName', 'N/A'),
-            "current_price": stock.info.get('regularMarketPrice', 'N/A'),
-            "previous_close": stock.info.get('previousClose', 'N/A'),
-            "market_cap": stock.info.get('marketCap', 'N/A')
-        }
-    except Exception as e:
-        return {"error": f"Failed to fetch stock data: {str(e)}"}
-
-    stock_info = stock.history(period="5d")
-    
-    return {
-        "stock_name": stock.info.get('shortName', 'N/A'),
-        "current_price": round(stock_info['Close'][-1], 2) if not stock_info.empty else "N/A",
-        "news": get_stock_news(ticker)
-    }
 
 @app.route("/get_stock", methods=["GET"])
 def stock_data():
@@ -79,4 +55,5 @@ def stock_data():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
 
