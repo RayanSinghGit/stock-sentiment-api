@@ -31,7 +31,24 @@ import yfinance as yf
 def get_stock_data(ticker):
     session = requests.Session()
     session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})  # Spoof browser
-    stock = yf.Ticker(ticker, session=session)
+    import requests
+import yfinance as yf
+
+def get_stock_data(ticker):
+    try:
+        session = requests.Session()
+        session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})  # Spoof browser
+        stock = yf.Ticker(ticker)  # Do NOT pass session here, yfinance does not accept it
+
+        return {
+            "stock_name": stock.info.get('shortName', 'N/A'),
+            "current_price": stock.info.get('regularMarketPrice', 'N/A'),
+            "previous_close": stock.info.get('previousClose', 'N/A'),
+            "market_cap": stock.info.get('marketCap', 'N/A')
+        }
+    except Exception as e:
+        return {"error": f"Failed to fetch stock data: {str(e)}"}
+
 
     try:
         return {
