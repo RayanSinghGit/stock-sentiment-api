@@ -8,19 +8,82 @@ from textblob import TextBlob
 app = Flask(__name__)
 CORS(app)  # Allow frontend (Framer) to call the API
 
-# Function to fetch stock news and sentiment
-def get_stock_news(ticker):
-    url = f"https://news.google.com/search?q={ticker}%20stock"
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, 'html.parser')
+# Function to fetch stock news and sentimentdef get_stock_news(ticker):
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
 
-    headlines = soup.find_all('h3')[:5]  # Get top 5 headlines
+# Load FinBERT Model
+model_name = "ProsusAI/finbert"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForSequenceClassification.from_pretrained(model_name)
+nlp = pipeline("sentiment-analysis", model=model, tokenizer=tokenizer)
+
+# Function to Fetch Stock News and Analyze Sentiment
+import requests
+from bs4 import BeautifulSoup
+from serpapi import GoogleSearch  # For Google News API
+import os
+
+# Use your free SerpAPI key here
+SERPAPI_KEY = "c804f2de22e6c974412984a4075f169e03b1d21d32d62f06051ca59955ff75af"
+BING_API_KEY = "YOUR_BING_API_KEY"  # Get from Microsoft Bing
+
+def get_stock_news(ticker):
     news_data = []
     
-    for h in headlines:
-        text = h.get_text()
-        sentiment = TextBlob(text).sentiment.polarity  # Sentiment Analysis
-        news_data.append({"headline": text, "sentiment": "Bullish" if sentiment > 0 else "Bearish" if sentiment < 0 else "Neutral"})
+    #  1. Get news from Google (via SerpAPI)
+    try:
+        params = {
+            "engine": "google_news",
+            "q": f"{ticker} stock",
+            "api_key": SERPAPI_KEY,
+            "num": 5  # Limit to top 5
+        }
+        search = GoogleSearch(params)
+        results = search.get_dict()
+        news_results = results.get("news_results", [])
+
+        for article in news_results:
+            news_data.append({
+                "headline": article["title"],
+                "link": article["link"],
+                "source": "Google News"
+            })
+    except Exception as e:
+        print(f"Google News error: {e}")
+
+    #  2. Get news from Yahoo Finance (scraping)
+    try:
+        yahoo_url = f"https://finance.yahoo.com/quote/{ticker}/news"
+        response = requests.get(yahoo_url, headers={"User-Agent": "Mozilla/5.0"})
+        soup = BeautifulSoup(response.text, 'html.parser')
+        headlines = soup.select("h3 a")[:5]  # Top 5 headlines
+
+        for h in headlines:
+            text = h.get_text()
+            link = "https://finance.yahoo.com" + h["href"]
+            news_data.append({
+                "headline": text,
+                "link": link,
+                "source": "Yahoo Finance"
+            })
+    except Exception as e:
+        print(f"Yahoo Finance error: {e}")
+
+    #  3. Get news from Bing News API
+    try:
+        bing_url = f"https://api.bing.microsoft.com/v7.0/news/search?q={ticker}+stock&count=5"
+        headers = {"Ocp-Apim-Subscription-Key": BING_API_KEY}
+        response = requests.get(bing_url, headers=headers)
+        bing_results = response.json().get("value", [])
+
+        for article in bing_results:
+            news_data.append({
+                "headline": article["name"],
+                "link": article["url"],
+                "source": "Bing News"
+            })
+    except Exception as e:
+        print(f"Bing News error: {e}")
 
     return news_data
 
