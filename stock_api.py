@@ -26,21 +26,30 @@ def get_stock_data(ticker):
     ratios = stock.financials
     
     # Fetching Simple Moving Averages (SMA)
-    import math
+# Function to ensure numbers are valid and prevent NaN issues
+import math
 
-    # Helper function to prevent NaN values
 def safe_number(value, default=0):
+    """Returns the value if it's a number and not NaN, otherwise returns the default."""
     return value if isinstance(value, (int, float)) and not math.isnan(value) else default
 
-# Fetching key financial metrics
-stock_info = stock.info
-ratios = stock.financials
+# Function to fetch stock data
+def get_stock_data(ticker):
+    stock = yf.Ticker(ticker)
+    hist = stock.history(period="6mo")  # Fetch 6-month history for the chart
 
-# Fetching Simple Moving Averages (SMA) with safe defaults
-sma_50 = safe_number(hist['Close'].rolling(window=50).mean().dropna().iloc[-1], default=0)
-sma_100 = safe_number(hist['Close'].rolling(window=100).mean().dropna().iloc[-1], default=0)
+    if hist.empty:
+        return None
 
-    return {  # This must be correctly indented inside the function!
+    # Fetching key financial metrics
+    stock_info = stock.info
+
+    # Fetching Simple Moving Averages (SMA) with safe defaults
+    sma_50 = safe_number(hist['Close'].rolling(window=50).mean().dropna().iloc[-1], default=0)
+    sma_100 = safe_number(hist['Close'].rolling(window=100).mean().dropna().iloc[-1], default=0)
+    sma_200 = safe_number(hist['Close'].rolling(window=200).mean().dropna().iloc[-1], default=0)
+
+    return {
         "stock_name": stock_info.get("longName", ticker),
         "current_price": stock_info.get("currentPrice"),
         "previous_close": stock_info.get("previousClose"),
