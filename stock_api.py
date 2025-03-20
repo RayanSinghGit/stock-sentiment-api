@@ -39,7 +39,6 @@ ratios = stock.financials
 # Fetching Simple Moving Averages (SMA) with safe defaults
 sma_50 = safe_number(hist['Close'].rolling(window=50).mean().dropna().iloc[-1], default=0)
 sma_100 = safe_number(hist['Close'].rolling(window=100).mean().dropna().iloc[-1], default=0)
-sma_200 = safe_number(hist['Close'].rolling(window=200).mean().dropna().iloc[-1], default=0)
 
     return {  # This must be correctly indented inside the function!
         "stock_name": stock_info.get("longName", ticker),
