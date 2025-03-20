@@ -12,25 +12,22 @@ import math
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
-NEWS_API_KEY = "YOUR_NEWS_API_KEY"  # Replace with actual API Key
+NEWS_API_KEY = "YOUR_NEWS_API_KEY"  # Replace this with a real key
 
-# Function to ensure numbers are valid and prevent NaN issues
+# Ensure numbers are valid and prevent NaN issues
 def safe_number(value, default=0):
-    """Returns the value if it's a number and not NaN, otherwise returns the default."""
     return value if isinstance(value, (int, float)) and not math.isnan(value) else default
 
-# Function to fetch stock data
+# Fetch stock data
 def get_stock_data(ticker):
     stock = yf.Ticker(ticker)
-    hist = stock.history(period="6mo")  # Fetch 6-month history for the chart
+    hist = stock.history(period="6mo")
 
     if hist.empty:
         return None
 
-    # Fetching key financial metrics
     stock_info = stock.info
 
-    # Fetching Simple Moving Averages (SMA) with safe defaults
     sma_50 = safe_number(hist['Close'].rolling(window=50).mean().dropna().iloc[-1] if len(hist) >= 50 else None)
     sma_100 = safe_number(hist['Close'].rolling(window=100).mean().dropna().iloc[-1] if len(hist) >= 100 else None)
     sma_200 = safe_number(hist['Close'].rolling(window=200).mean().dropna().iloc[-1] if len(hist) >= 200 else None)
@@ -46,11 +43,11 @@ def get_stock_data(ticker):
         "sma_50": round(sma_50, 2),
         "sma_100": round(sma_100, 2),
         "sma_200": round(sma_200, 2),
-        "croci": stock_info.get("returnOnEquity"),  # Approximate CROCI using ROE
-        "price_trend": list(hist['Close'].tail(5)),  # Last 5 closing prices
+        "croci": stock_info.get("returnOnEquity"),
+        "price_trend": list(hist['Close'].tail(5)),
     }
 
-# Function to fetch news
+# Fetch news
 def get_latest_news(ticker):
     url = f"https://newsapi.org/v2/everything?q={ticker}&sortBy=relevancy&language=en&apiKey={NEWS_API_KEY}"
     response = requests.get(url)
@@ -58,7 +55,7 @@ def get_latest_news(ticker):
     if response.status_code != 200:
         return []
 
-    articles = response.json().get("articles", [])[:10]  # Get top 10 articles
+    articles = response.json().get("articles", [])[:10]
     news_data = []
 
     for article in articles:
@@ -74,7 +71,7 @@ def get_latest_news(ticker):
 
     return news_data
 
-# Function to generate stock price chart
+# Generate stock price chart
 def generate_stock_chart(ticker):
     stock = yf.Ticker(ticker)
     hist = stock.history(period="6mo")
@@ -96,7 +93,7 @@ def generate_stock_chart(ticker):
 
     return img
 
-# API route to fetch stock data
+# Fetch stock data API route
 @app.route("/get_stock", methods=["GET"])
 def get_stock():
     ticker = request.args.get("ticker", "").upper()
@@ -107,10 +104,10 @@ def get_stock():
     if not stock_data:
         return jsonify({"error": "Invalid ticker or data unavailable"}), 400
 
-    stock_data["news"] = get_latest_news(ticker)  # Add news data
+    stock_data["news"] = get_latest_news(ticker)
     return jsonify(stock_data)
 
-# API route to serve stock price chart
+# Fetch stock chart API route
 @app.route("/get_chart", methods=["GET"])
 def get_chart():
     ticker = request.args.get("ticker", "").upper()
@@ -123,7 +120,7 @@ def get_chart():
 
     return send_file(chart_img, mimetype='image/png')
 
-# Enable CORS for all routes
+# FORCE CORS HEADERS
 @app.after_request
 def add_cors_headers(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
