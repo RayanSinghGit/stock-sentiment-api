@@ -69,24 +69,6 @@ def get_stock_news(ticker):
     except Exception as e:
         print(f"Yahoo Finance error: {e}")
 
-    #  3. Get news from Bing News API
-    try:
-        bing_url = f"https://api.bing.microsoft.com/v7.0/news/search?q={ticker}+stock&count=5"
-        headers = {"Ocp-Apim-Subscription-Key": BING_API_KEY}
-        response = requests.get(bing_url, headers=headers)
-        bing_results = response.json().get("value", [])
-
-        for article in bing_results:
-            news_data.append({
-                "headline": article["name"],
-                "link": article["url"],
-                "source": "Bing News"
-            })
-    except Exception as e:
-        print(f"Bing News error: {e}")
-
-    return news_data
-
 # Function to fetch stock price and price target
 def get_stock_data(ticker):
     try:
