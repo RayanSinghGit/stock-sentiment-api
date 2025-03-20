@@ -28,6 +28,7 @@ def get_stock_data(ticker):
 
     stock_info = stock.info
 
+    # Handling SMA calculations safely
     sma_50 = safe_number(hist['Close'].rolling(window=50).mean().dropna().iloc[-1] if len(hist) >= 50 else None)
     sma_100 = safe_number(hist['Close'].rolling(window=100).mean().dropna().iloc[-1] if len(hist) >= 100 else None)
     sma_200 = safe_number(hist['Close'].rolling(window=200).mean().dropna().iloc[-1] if len(hist) >= 200 else None)
@@ -89,6 +90,7 @@ def generate_stock_chart(ticker):
 
     img = BytesIO()
     plt.savefig(img, format='png')
+    plt.close()  # Close the plot to prevent memory leaks
     img.seek(0)
 
     return img
@@ -127,6 +129,16 @@ def add_cors_headers(response):
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     return response
+
+# Handle CORS preflight requests manually
+@app.route("/get_stock", methods=["OPTIONS"])
+@app.route("/get_chart", methods=["OPTIONS"])
+def preflight():
+    response = jsonify({"message": "Preflight OK"})
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    return response, 204
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)
