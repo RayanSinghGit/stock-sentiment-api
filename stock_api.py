@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, send_file
+from flask_cors import CORS
 import yfinance as yf
 import requests
 import matplotlib.pyplot as plt
@@ -8,6 +9,7 @@ from textblob import TextBlob
 from io import BytesIO
 
 app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 NEWS_API_KEY = "YOUR_NEWS_API_KEY"  # Replace with actual API Key
 
@@ -119,4 +121,10 @@ def get_chart():
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)
 
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    return response
 

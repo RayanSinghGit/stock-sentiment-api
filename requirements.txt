@@ -33,4 +33,5 @@ yfinance==0.2.54
 transformers
 torch
 matplotlib==3.8.3
+flask-cors
 
