@@ -1,5 +1,6 @@
 import yfinance as yf
 import math
+from api.stock_lookup import search_stock_ticker
 
 # Ensure numbers are valid and prevent NaN issues
 def safe_number(value, default=0):
@@ -15,22 +16,17 @@ def calculate_rsi(hist, period=14):
     rsi = 100 - (100 / (1 + rs))
     return rsi
 
-# Function to properly format stock tickers for NSE, BSE, and US markets
-def format_ticker(ticker):
-    ticker = ticker.upper()
-    
-    if ticker.endswith(".NS") or ticker.endswith(".BO"):  
-        return ticker  # If already formatted for Indian exchanges, return as-is
+# Fetch stock data (Supports company name or ticker)
+def get_stock_data(query):
+    # Try to detect whether user provided a ticker or a company name
+    if len(query) > 5 or " " in query:  
+        ticker = search_stock_ticker(query)  # Convert name to ticker
+        if not ticker:
+            return {"error": "Company not found!"}
+    else:
+        ticker = query.upper()  # Assume valid ticker provided
 
-    if ticker.isalpha():
-        return ticker + ".NS"  # Assume it's an NSE-listed stock if no suffix
-    
-    return ticker  # Assume it's a US-listed stock
-
-# Fetch stock data (supports US, NSE, and BSE stocks)
-def get_stock_data(ticker):
-    formatted_ticker = format_ticker(ticker)
-    stock = yf.Ticker(formatted_ticker)
+    stock = yf.Ticker(ticker)
     hist = stock.history(period="6mo")
 
     if hist.empty:
@@ -43,7 +39,7 @@ def get_stock_data(ticker):
     sma_200 = safe_number(hist['Close'].rolling(window=200).mean().dropna().iloc[-1] if len(hist) >= 200 else None)
 
     return {
-        "stock_name": stock_info.get("longName", formatted_ticker),
+        "stock_name": stock_info.get("longName", ticker),
         "current_price": stock_info.get("currentPrice"),
         "previous_close": stock_info.get("previousClose"),
         "market_cap": stock_info.get("marketCap"),
