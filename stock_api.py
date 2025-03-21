@@ -12,11 +12,19 @@ import math
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
-NEWS_API_KEY = "YOUR_NEWS_API_KEY"  # Replace this with a real key
+NEWS_API_KEY = "YOUR_NEWS_API_KEY"  # Replace with a valid NewsAPI key
 
 # Ensure numbers are valid and prevent NaN issues
 def safe_number(value, default=0):
     return value if isinstance(value, (int, float)) and not math.isnan(value) else default
+
+# Calculate RSI (Relative Strength Index)
+def calculate_rsi(hist, period=14):
+    delta = hist['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
+    return 100 - (100 / (1 + rs))
 
 # Fetch stock data
 def get_stock_data(ticker):
@@ -28,7 +36,6 @@ def get_stock_data(ticker):
 
     stock_info = stock.info
 
-    # Handling SMA calculations safely
     sma_50 = safe_number(hist['Close'].rolling(window=50).mean().dropna().iloc[-1] if len(hist) >= 50 else None)
     sma_100 = safe_number(hist['Close'].rolling(window=100).mean().dropna().iloc[-1] if len(hist) >= 100 else None)
     sma_200 = safe_number(hist['Close'].rolling(window=200).mean().dropna().iloc[-1] if len(hist) >= 200 else None)
@@ -45,24 +52,29 @@ def get_stock_data(ticker):
         "sma_100": round(sma_100, 2),
         "sma_200": round(sma_200, 2),
         "croci": stock_info.get("returnOnEquity"),
+        "rsi_14": round(safe_number(calculate_rsi(hist).iloc[-1]), 2),
         "price_trend": list(hist['Close'].tail(5)),
     }
 
-# Fetch news
+# Fetch news and sentiment
 def get_latest_news(ticker):
     url = f"https://newsapi.org/v2/everything?q={ticker}&sortBy=relevancy&language=en&apiKey={NEWS_API_KEY}"
     response = requests.get(url)
 
     if response.status_code != 200:
-        return []
+        return {"news": [], "sentiment_score": 0}
 
     articles = response.json().get("articles", [])[:10]
     news_data = []
+    total_score = 0
 
     for article in articles:
         headline = article["title"]
         sentiment_score = TextBlob(headline).sentiment.polarity
-        sentiment_label = "positive" if sentiment_score > 0 else "negative" if sentiment_score < 0 else "neutral"
+        total_score += sentiment_score
+        sentiment_label = (
+            "positive" if sentiment_score > 0 else "negative" if sentiment_score < 0 else "neutral"
+        )
 
         news_data.append({
             "headline": headline,
@@ -70,30 +82,9 @@ def get_latest_news(ticker):
             "sentiment": sentiment_label
         })
 
-    return news_data
+    avg_sentiment = round(total_score / len(articles), 2) if articles else 0
 
-# Generate stock price chart
-def generate_stock_chart(ticker):
-    stock = yf.Ticker(ticker)
-    hist = stock.history(period="6mo")
-
-    if hist.empty:
-        return None
-
-    plt.figure(figsize=(10, 5))
-    plt.plot(hist.index, hist["Close"], label="Close Price", color="blue")
-    plt.title(f"{ticker} Stock Price (Last 6 Months)")
-    plt.xlabel("Date")
-    plt.ylabel("Price (USD)")
-    plt.legend()
-    plt.grid()
-
-    img = BytesIO()
-    plt.savefig(img, format='png')
-    plt.close()  # Close the plot to prevent memory leaks
-    img.seek(0)
-
-    return img
+    return {"news": news_data, "sentiment_score": avg_sentiment}
 
 # Fetch stock data API route
 @app.route("/get_stock", methods=["GET"])
@@ -106,21 +97,11 @@ def get_stock():
     if not stock_data:
         return jsonify({"error": "Invalid ticker or data unavailable"}), 400
 
-    stock_data["news"] = get_latest_news(ticker)
+    news_data = get_latest_news(ticker)
+    stock_data["news"] = news_data["news"]
+    stock_data["sentiment_score"] = news_data["sentiment_score"]
+
     return jsonify(stock_data)
-
-# Fetch stock chart API route
-@app.route("/get_chart", methods=["GET"])
-def get_chart():
-    ticker = request.args.get("ticker", "").upper()
-    if not ticker:
-        return jsonify({"error": "No ticker provided"}), 400
-
-    chart_img = generate_stock_chart(ticker)
-    if not chart_img:
-        return jsonify({"error": "Could not generate chart"}), 400
-
-    return send_file(chart_img, mimetype='image/png')
 
 # FORCE CORS HEADERS
 @app.after_request
@@ -129,16 +110,6 @@ def add_cors_headers(response):
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     return response
-
-# Handle CORS preflight requests manually
-@app.route("/get_stock", methods=["OPTIONS"])
-@app.route("/get_chart", methods=["OPTIONS"])
-def preflight():
-    response = jsonify({"message": "Preflight OK"})
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    return response, 204
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)
