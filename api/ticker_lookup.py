@@ -1,19 +1,29 @@
-import requests
+import yfinance as yf
+from flask import Blueprint, request, jsonify
 
-# Convert a user-friendly name into the correct ticker format
-def get_full_ticker(query):
-    query = query.upper().strip()
-    
-    # Map user input to proper tickers
-    manual_mapping = {
-        "TATA MOTORS": "TATAMOTORS.NS",
-        "RELIANCE": "RELIANCE.NS",
-        "HDFC BANK": "HDFCBANK.NS",
-    }
-    
-    if query in manual_mapping:
-        return manual_mapping[query]
+ticker_bp = Blueprint("ticker", __name__)
 
-    # Default to NSE ticker (yfinance format)
-    return f"{query}.NS"
+@ticker_bp.route("/search_ticker", methods=["GET"])
+def search_ticker():
+    query = request.args.get("query", "").strip().lower()
+    
+    if not query:
+        return jsonify({"error": "Query is required"}), 400
+
+    try:
+        # Use Yahoo Finance API to search for stocks
+        matches = yf.search(query)
+        results = []
+
+        for item in matches.get("quotes", []):
+            results.append({
+                "ticker": item["symbol"],
+                "name": item["shortname"],
+                "exchange": item["exchange"]
+            })
+
+        return jsonify(results)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
