@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import yfinance as yf
 import requests
@@ -6,19 +6,20 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import os
 from textblob import TextBlob
-from io import BytesIO
 import math
+
+from ticker_lookup import search_stocks  # ✅ uses your existing file
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
-NEWS_API_KEY = "YOUR_NEWS_API_KEY"  # Replace with a valid NewsAPI key
+NEWS_API_KEY = "YOUR_NEWS_API_KEY"  # Replace with your News API Key
 
-# Ensure numbers are valid and prevent NaN issues
+
 def safe_number(value, default=0):
     return value if isinstance(value, (int, float)) and not math.isnan(value) else default
 
-# Calculate RSI (Relative Strength Index)
+
 def calculate_rsi(hist, period=14):
     delta = hist['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
@@ -26,7 +27,7 @@ def calculate_rsi(hist, period=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
-# Fetch stock data
+
 def get_stock_data(ticker):
     stock = yf.Ticker(ticker)
     hist = stock.history(period="6mo")
@@ -56,7 +57,7 @@ def get_stock_data(ticker):
         "price_trend": list(hist['Close'].tail(5)),
     }
 
-# Fetch news and sentiment
+
 def get_latest_news(ticker):
     url = f"https://newsapi.org/v2/everything?q={ticker}&sortBy=relevancy&language=en&apiKey={NEWS_API_KEY}"
     response = requests.get(url)
@@ -78,7 +79,7 @@ def get_latest_news(ticker):
 
         news_data.append({
             "headline": headline,
-            "link": article["url"],
+            "url": article["url"],
             "sentiment": sentiment_label
         })
 
@@ -86,8 +87,18 @@ def get_latest_news(ticker):
 
     return {"news": news_data, "sentiment_score": avg_sentiment}
 
-# Fetch stock data API route
-@app.route("/get_stock", methods=["GET"])
+
+@app.route("/api/search_ticker", methods=["GET"])
+def search_ticker():
+    query = request.args.get("query", "")
+    if not query:
+        return jsonify([])
+
+    results = search_stocks(query)
+    return jsonify(results)
+
+
+@app.route("/api/get_stock", methods=["GET"])
 def get_stock():
     ticker = request.args.get("ticker", "").upper()
     if not ticker:
@@ -103,13 +114,14 @@ def get_stock():
 
     return jsonify(stock_data)
 
-# FORCE CORS HEADERS
+
 @app.after_request
 def add_cors_headers(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     return response
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)
