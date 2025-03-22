@@ -8,7 +8,7 @@ import os
 from textblob import TextBlob
 import math
 
-from ticker_lookup import search_stocks  # ✅ uses your existing file
+from api.ticker_lookup import search_stocks  # ✅ uses your existing file
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
