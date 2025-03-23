@@ -3,14 +3,13 @@ from flask_cors import CORS
 
 # ✅ Import Blueprints from modular route files
 from api.stock_bp import stock_bp
-from api.ticker_lookup import ticker_bp
+from api.ticker_lookup import search_stocks
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 # ✅ Register modular blueprints
 app.register_blueprint(stock_bp)
-app.register_blueprint(ticker_bp)
 
 # ✅ Add CORS headers after request
 @app.after_request

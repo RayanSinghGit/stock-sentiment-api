@@ -1,24 +1,29 @@
-from flask import Blueprint, request, jsonify
 import yfinance as yf
-
-ticker_bp = Blueprint("ticker", __name__)
 
 def search_stocks(query):
     query = query.lower()
-    stocks = yf.Ticker(query)
-    try:
-        info = stocks.info
-        name = info.get("longName", query)
-        symbol = info.get("symbol", query.upper())
-        return [{"name": name, "symbol": symbol}]
-    except Exception:
-        return []
 
-@ticker_bp.route("/api/search_ticker", methods=["GET"])
-def search_ticker():
-    query = request.args.get("query", "")
-    if not query:
-        return jsonify([])
-    results = search_stocks(query)
-    return jsonify(results)
+    # Get all S&P 500 and major tickers from yfinance
+    tickers = yf.Tickers(" ".join(["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "TCS.NS", "TATAMOTORS.NS", "TATASTEEL.NS", "TATAPOWER.NS", "INFY.NS", "RELIANCE.NS", "HDFCBANK.NS"]))
+
+    matches = []
+
+    for symbol, stock in tickers.tickers.items():
+        try:
+            info = stock.info
+            name = info.get("shortName", "").lower()
+            full_name = info.get("longName", "").lower()
+            sym = symbol.lower()
+
+            # Match if query is in symbol, shortName, or longName
+            if query in sym or query in name or query in full_name:
+                matches.append({
+                    "symbol": symbol.upper(),
+                    "name": info.get("longName") or info.get("shortName") or symbol.upper()
+                })
+
+        except Exception:
+            continue  # Skip any failed ticker fetches
+
+    return matches
 
