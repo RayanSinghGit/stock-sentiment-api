@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 from api.stock_bp import stock_bp
@@ -7,7 +7,7 @@ from api.ticker_lookup import ticker_lookup_bp
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
-# Register routes from modular files
+# Register Blueprints
 app.register_blueprint(stock_bp)
 app.register_blueprint(ticker_lookup_bp)
 
